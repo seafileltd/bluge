@@ -69,6 +69,14 @@ type stubIndexReader struct {
 	fieldFreqs map[string]uint64
 }
 
+func (s *stubIndexReader) GetDocumentFreq(term []byte, field string, includeFreq, includeNorm, includeTermVectors bool) (uint64, error) {
+	iter, err := s.PostingsIterator(term, field, includeFreq, includeNorm, includeTermVectors)
+	if err != nil {
+		return 0, err
+	}
+	return iter.Count(), nil
+}
+
 func newStubIndexReader() *stubIndexReader {
 	return &stubIndexReader{
 		inv:        make(map[string]stubDict),

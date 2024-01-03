@@ -96,7 +96,7 @@ func optimizeCompositeSearcher(optimizationKind string,
 		return nil, err
 	}
 
-	return newTermSearcherFromReader(indexReader, optimized,
+	return newTermSearcherFromReader(indexReader, optimized, optimized.Count(),
 		[]byte(optimizationKind), "*", 1.0, similarity.ConstantScorer(1), options)
 }
 

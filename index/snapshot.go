@@ -385,6 +385,15 @@ func (i *Snapshot) PostingsIterator(term []byte, field string, includeFreq,
 	return rv, nil
 }
 
+func (i *Snapshot) GetDocumentFreq(term []byte, field string, includeFreq, includeNorm,
+	includeTermVectors bool) (uint64, error) {
+	iter, err := i.PostingsIterator(term, field, includeFreq, includeNorm, includeTermVectors)
+	if err != nil {
+		return 0, err
+	}
+	return iter.Count(), nil
+}
+
 func (i *Snapshot) allocPostingsIterator(field string) (tfr *postingsIterator) {
 	i.m2.Lock()
 	if i.fieldTFRs != nil {
