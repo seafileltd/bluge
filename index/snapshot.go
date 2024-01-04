@@ -391,7 +391,12 @@ func (i *Snapshot) GetDocumentFreq(term []byte, field string, includeFreq, inclu
 	if err != nil {
 		return 0, err
 	}
-	return iter.Count(), nil
+	defer func() {
+		_ = iter.Close()
+	}()
+
+	res := iter.Count()
+	return res, nil
 }
 
 func (i *Snapshot) allocPostingsIterator(field string) (tfr *postingsIterator) {
