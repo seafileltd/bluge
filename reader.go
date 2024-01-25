@@ -99,7 +99,7 @@ func (r *Reader) Close() error {
 	return r.reader.Close()
 }
 
-func (r *Reader) GetIndexReader() search.Reader {
+func (r *Reader) GetUnderlyingReader() search.Reader {
 	return r.reader
 }
 
