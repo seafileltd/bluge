@@ -64,7 +64,7 @@ func (r *Reader) Search(ctx context.Context, req SearchRequest) (search.Document
 		return nil, err
 	}
 
-	memNeeded := memNeededForSearch(searcher, collector)
+	memNeeded := MemNeededForSearch(searcher, collector)
 	if r.config.SearchStartFunc != nil {
 		err = r.config.SearchStartFunc(memNeeded)
 	}
@@ -97,4 +97,12 @@ func (r *Reader) Backup(path string, cancel chan struct{}) error {
 
 func (r *Reader) Close() error {
 	return r.reader.Close()
+}
+
+func (r *Reader) GetUnderlyingReader() search.Reader {
+	return r.reader
+}
+
+func (r *Reader) GetConfig() Config {
+	return r.config
 }

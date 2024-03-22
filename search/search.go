@@ -352,6 +352,9 @@ type Reader interface {
 	PostingsIterator(term []byte, field string, includeFreq, includeNorm,
 		includeTermVectors bool) (segment.PostingsIterator, error)
 
+	GetDocumentFreq(term []byte, field string, includeFreq, includeNorm,
+		includeTermVectors bool) (uint64, error)
+
 	// Close releases all resources associated with this Reader
 	Close() error
 }

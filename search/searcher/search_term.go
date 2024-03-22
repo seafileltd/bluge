@@ -39,7 +39,11 @@ func NewTermSearcherBytes(indexReader search.Reader, term []byte, field string, 
 	if err != nil {
 		return nil, err
 	}
-	return newTermSearcherFromReader(indexReader, reader, term, field, boost, scorer, options)
+	docFreq, err := indexReader.GetDocumentFreq(term, field, needFreqNorm, needFreqNorm, options.IncludeTermVectors)
+	if err != nil {
+		return nil, err
+	}
+	return newTermSearcherFromReader(indexReader, reader, docFreq, term, field, boost, scorer, options)
 }
 
 type termStatsWrapper struct {
@@ -51,13 +55,13 @@ func (t *termStatsWrapper) DocumentFrequency() uint64 {
 }
 
 func newTermSearcherFromReader(indexReader search.Reader, reader segment.PostingsIterator,
-	term []byte, field string, boost float64, scorer search.Scorer, options search.SearcherOptions) (*TermSearcher, error) {
+	docFreq uint64, term []byte, field string, boost float64, scorer search.Scorer, options search.SearcherOptions) (*TermSearcher, error) {
 	if scorer == nil {
 		collStats, err := indexReader.CollectionStats(field)
 		if err != nil {
 			return nil, err
 		}
-		scorer = options.SimilarityForField(field).Scorer(boost, collStats, &termStatsWrapper{docFreq: reader.Count()})
+		scorer = options.SimilarityForField(field).Scorer(boost, collStats, &termStatsWrapper{docFreq: docFreq})
 	}
 	return &TermSearcher{
 		indexReader: indexReader,
