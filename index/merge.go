@@ -205,7 +205,9 @@ func (s *Writer) executeMergeTask(merges chan *segmentMerge, task *mergeplan.Mer
 		if mergeTaskIntroStatus.skipped {
 			// decrement the ref counts on skipping introduction.
 			// FIXME stale file that won't get cleaned up
-			_ = seg.Close()
+			if seg != nil {
+				_ = seg.Close()
+			}
 		}
 	}
 
