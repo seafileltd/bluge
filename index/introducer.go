@@ -16,6 +16,8 @@ package index
 
 import (
 	"fmt"
+	"os"
+	"runtime/debug"
 	"sync/atomic"
 
 	segment "github.com/blugelabs/bluge_segment_api"
@@ -43,6 +45,14 @@ type persistIntroduction struct {
 func (s *Writer) introducerLoop(introductions chan *segmentIntroduction,
 	persists chan *persistIntroduction, merges chan *segmentMerge,
 	introducerNotifier watcherChan, nextSnapshotEpoch uint64) {
+	var nextMerge *segmentMerge
+	var next *segmentIntroduction
+	var persist *persistIntroduction
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("introducerLoop %s goroutine crashed: %v\n%s", s.config.path, err, debug.Stack()))
+		}
+	}()
 	var introduceWatchers epochWatchers
 OUTER:
 	for {
@@ -55,12 +65,12 @@ OUTER:
 		case epochWatcher := <-introducerNotifier:
 			introduceWatchers.Add(epochWatcher)
 
-		case nextMerge := <-merges:
+		case nextMerge = <-merges:
 			introduceSnapshotEpoch := nextSnapshotEpoch
 			nextSnapshotEpoch++
 			s.introduceMerge(nextMerge, introduceSnapshotEpoch)
 
-		case next := <-introductions:
+		case next = <-introductions:
 			introduceSnapshotEpoch := nextSnapshotEpoch
 			nextSnapshotEpoch++
 			err := s.introduceSegment(next, introduceSnapshotEpoch)
@@ -68,7 +78,7 @@ OUTER:
 				continue OUTER
 			}
 
-		case persist := <-persists:
+		case persist = <-persists:
 			introduceSnapshotEpoch := nextSnapshotEpoch
 			nextSnapshotEpoch++
 			s.introducePersist(persist, introduceSnapshotEpoch)
@@ -241,7 +251,6 @@ func (s *Writer) introducePersist(persist *persistIntroduction, introduceSnapsho
 func (s *Writer) introduceMerge(nextMerge *segmentMerge, introduceSnapshotEpoch uint64) {
 	atomic.AddUint64(&s.stats.TotIntroduceMergeBeg, 1)
 	defer atomic.AddUint64(&s.stats.TotIntroduceMergeEnd, 1)
-
 	root := s.currentSnapshot()
 	defer func() { _ = root.Close() }()
 

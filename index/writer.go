@@ -36,6 +36,7 @@ type Writer struct {
 	nextSegmentID uint64
 
 	config         Config
+	path           string
 	deletionPolicy DeletionPolicy
 	directory      Directory
 	segPlugin      *SegmentPlugin // segment plug-in in use

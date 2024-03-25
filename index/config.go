@@ -24,9 +24,9 @@ import (
 )
 
 type Config struct {
-	SegmentType    string
-	SegmentVersion uint32
-
+	SegmentType             string
+	SegmentVersion          uint32
+	path                    string
 	supportedSegmentPlugins map[string]map[uint32]*SegmentPlugin
 
 	UnsafeBatch        bool
@@ -144,6 +144,7 @@ func DefaultConfig(path string) Config {
 	rv.DirectoryFunc = func() Directory {
 		return NewFileSystemDirectory(path)
 	}
+	rv.path = path
 	return rv
 }
 
