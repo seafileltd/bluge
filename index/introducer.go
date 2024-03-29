@@ -16,6 +16,9 @@ package index
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"runtime/debug"
 	"sync/atomic"
 
 	segment "github.com/blugelabs/bluge_segment_api"
@@ -43,6 +46,12 @@ type persistIntroduction struct {
 func (s *Writer) introducerLoop(introductions chan *segmentIntroduction,
 	persists chan *persistIntroduction, merges chan *segmentMerge,
 	introducerNotifier watcherChan, nextSnapshotEpoch uint64) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("introducerLoop %s goroutine crashed: %v\n%s", s.config.path, err, debug.Stack()))
+			log.Fatal(err)
+		}
+	}()
 	var introduceWatchers epochWatchers
 OUTER:
 	for {
@@ -258,7 +267,7 @@ func (s *Writer) introduceMerge(nextMerge *segmentMerge, introduceSnapshotEpoch 
 	var memSegments, fileSegments uint64
 	for i := range root.segment {
 		segmentID := root.segment[i].id
-		segmentIsGoingAway := nextMerge.ProcessSegmentNow(segmentID, root.segment[i], newSegmentDeleted)
+		segmentIsGoingAway := nextMerge.ProcessSegmentNow(segmentID, root.segment[i], newSegmentDeleted, s.config.path)
 		if !segmentIsGoingAway && root.segment[i].LiveSize() > 0 {
 			// this segment is staying
 			newSnapshot.segment = append(newSnapshot.segment, &segmentSnapshot{

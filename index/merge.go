@@ -16,6 +16,9 @@ package index
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -259,7 +262,31 @@ type segmentMerge struct {
 // during the merge, for each of these, we find the new document number of the item,
 // and flip the bit in the newSegmentDeleted bitmap, then returning true.
 func (s *segmentMerge) ProcessSegmentNow(segmentID uint64, segSnapNow *segmentSnapshot,
-	newSegmentDeleted *roaring.Bitmap) bool {
+	newSegmentDeleted *roaring.Bitmap, path string) bool {
+	defer func() {
+		if err := recover(); err != nil {
+			var lenAtMerge, lenSegNow, lenOldNew uint64
+			var deleteDocs []uint32
+			segSnapAtMerge := s.old[segmentID]
+			if segSnapAtMerge != nil {
+				lenAtMerge = segSnapAtMerge.segment.Count()
+			}
+			lenSegNow = segSnapNow.segment.Segment.Count()
+			lenOldNew = uint64(len(s.oldNewDocNums[segmentID]))
+			deletedSince := segSnapNow.deleted
+			// if we already knew about some of them, remove
+			if segSnapAtMerge.deleted != nil {
+				deletedSince = roaring.AndNot(segSnapNow.deleted, segSnapAtMerge.deleted)
+			}
+			deletedSinceItr := deletedSince.Iterator()
+			for deletedSinceItr.HasNext() {
+				deleteDocs = append(deleteDocs, deletedSinceItr.Next())
+			}
+			errStr := fmt.Sprintf("lenAtMerge: %d, lenSegNow: %d, lenOldNew %d;\n del docs: %v \n err: %v", lenAtMerge, lenSegNow, lenOldNew, deleteDocs, err)
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("index: [%s] ProcessSegmentNow crashed: %v\n%s", path, errStr, debug.Stack()))
+			log.Fatal(err)
+		}
+	}()
 	if segSnapAtMerge, ok := s.old[segmentID]; ok {
 		if segSnapAtMerge != nil && segSnapNow.deleted != nil {
 			// assume all these deletes are new
