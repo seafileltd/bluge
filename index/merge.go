@@ -266,23 +266,22 @@ func (s *segmentMerge) ProcessSegmentNow(segmentID uint64, segSnapNow *segmentSn
 	defer func() {
 		if err := recover(); err != nil {
 			var lenAtMerge, lenSegNow, lenOldNew uint64
-			var deleteDocs []uint32
+			var deleteDocs string
 			segSnapAtMerge := s.old[segmentID]
 			if segSnapAtMerge != nil {
 				lenAtMerge = segSnapAtMerge.segment.Count()
 			}
 			lenSegNow = segSnapNow.segment.Segment.Count()
 			lenOldNew = uint64(len(s.oldNewDocNums[segmentID]))
-			deletedSince := segSnapNow.deleted
-			// if we already knew about some of them, remove
-			if segSnapAtMerge.deleted != nil {
-				deletedSince = roaring.AndNot(segSnapNow.deleted, segSnapAtMerge.deleted)
+			if segSnapNow.deleted != nil {
+				deletedSince := segSnapNow.deleted
+				// if we already knew about some of them, remove
+				if segSnapAtMerge.deleted != nil {
+					deletedSince = roaring.AndNot(segSnapNow.deleted, segSnapAtMerge.deleted)
+				}
+				deleteDocs = deletedSince.String()
 			}
-			deletedSinceItr := deletedSince.Iterator()
-			for deletedSinceItr.HasNext() {
-				deleteDocs = append(deleteDocs, deletedSinceItr.Next())
-			}
-			errStr := fmt.Sprintf("lenAtMerge: %d, lenSegNow: %d, lenOldNew %d;\n del docs: %v \n err: %v", lenAtMerge, lenSegNow, lenOldNew, deleteDocs, err)
+			errStr := fmt.Sprintf("segId: %d lenAtMerge: %d, lenSegNow: %d, lenOldNew %d;\n del docs: %s \n err: %v", segmentID, lenAtMerge, lenSegNow, lenOldNew, deleteDocs, err)
 			fmt.Fprintln(os.Stderr, fmt.Sprintf("index: [%s] ProcessSegmentNow crashed: %v\n%s", path, errStr, debug.Stack()))
 			log.Fatal(err)
 		}
