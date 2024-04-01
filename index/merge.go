@@ -16,9 +16,7 @@ package index
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -262,30 +260,7 @@ type segmentMerge struct {
 // during the merge, for each of these, we find the new document number of the item,
 // and flip the bit in the newSegmentDeleted bitmap, then returning true.
 func (s *segmentMerge) ProcessSegmentNow(segmentID uint64, segSnapNow *segmentSnapshot,
-	newSegmentDeleted *roaring.Bitmap, path string) bool {
-	defer func() {
-		if err := recover(); err != nil {
-			var lenAtMerge, lenSegNow, lenOldNew uint64
-			var deleteDocs string
-			segSnapAtMerge := s.old[segmentID]
-			if segSnapAtMerge != nil {
-				lenAtMerge = segSnapAtMerge.segment.Count()
-			}
-			lenSegNow = segSnapNow.segment.Segment.Count()
-			lenOldNew = uint64(len(s.oldNewDocNums[segmentID]))
-			if segSnapNow.deleted != nil {
-				deletedSince := segSnapNow.deleted
-				// if we already knew about some of them, remove
-				if segSnapAtMerge.deleted != nil {
-					deletedSince = roaring.AndNot(segSnapNow.deleted, segSnapAtMerge.deleted)
-				}
-				deleteDocs = deletedSince.String()
-			}
-			errStr := fmt.Sprintf("segId: %d lenAtMerge: %d, lenSegNow: %d, lenOldNew %d;\n del docs: %s \n err: %v", segmentID, lenAtMerge, lenSegNow, lenOldNew, deleteDocs, err)
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("index: [%s] ProcessSegmentNow crashed: %v\n%s", path, errStr, debug.Stack()))
-			log.Fatal(err)
-		}
-	}()
+	newSegmentDeleted *roaring.Bitmap, name string) bool {
 	if segSnapAtMerge, ok := s.old[segmentID]; ok {
 		if segSnapAtMerge != nil && segSnapNow.deleted != nil {
 			// assume all these deletes are new
@@ -297,6 +272,12 @@ func (s *segmentMerge) ProcessSegmentNow(segmentID uint64, segSnapNow *segmentSn
 			deletedSinceItr := deletedSince.Iterator()
 			for deletedSinceItr.HasNext() {
 				oldDocNum := deletedSinceItr.Next()
+				// debug start
+				errStr := fmt.Sprintf("[%s] [%s] process segment now:\n segId: %d \n doc num seg at merge: %d \n doc num seg snap now: %d \n oldDoc num: %d \n oldNewDocNums: %d \n",
+					time.Now().Format("2006-01-02 15:04:05"), name, segSnapAtMerge.segment.Count(), segSnapNow.segment.Segment.Count(), oldDocNum, len(s.oldNewDocNums[segmentID]))
+				fmt.Fprintln(os.Stderr, errStr)
+				// debug end
+
 				newDocNum := s.oldNewDocNums[segmentID][oldDocNum]
 				newSegmentDeleted.Add(uint32(newDocNum))
 			}

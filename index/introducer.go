@@ -16,7 +16,6 @@ package index
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -50,8 +49,8 @@ func (s *Writer) introducerLoop(introductions chan *segmentIntroduction,
 	introducerNotifier watcherChan, nextSnapshotEpoch uint64) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("introducerLoop %s goroutine crashed: %v\n%s", s.config.path, err, debug.Stack()))
-			log.Fatal(err)
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("[%s] introducerLoop goroutine crashed: %v\n%s", s.config.IndexName, err, debug.Stack()))
+			os.Exit(1)
 		}
 	}()
 	var introduceWatchers epochWatchers
@@ -105,7 +104,7 @@ func (s *Writer) introduceSegment(next *segmentIntroduction, introduceSnapshotEp
 		}
 	}
 
-	s.debug(fmt.Sprintf("introduce segment:\n id: %d, docCount: %d \n delInfo: %s \n epoch: %d", next.id, newDocCount, delInfo.String(), introduceSnapshotEpoch))
+	s.debug(fmt.Sprintf("introduce segment:\n id: %d \n docCount: %d \n delInfo: %s \n epoch: %d", next.id, newDocCount, delInfo.String(), introduceSnapshotEpoch))
 	// debug info end
 
 	atomic.AddUint64(&s.stats.TotIntroduceSegmentBeg, 1)
@@ -285,7 +284,7 @@ func (s *Writer) introduceMerge(nextMerge *segmentMerge, introduceSnapshotEpoch 
 	if nextMerge.new != nil {
 		newDocCount = nextMerge.new.Count()
 	}
-	s.debug(fmt.Sprintf("introduce merge:\n new seg id: %d \n %s \n %s \n newSegDocCount: %d, epoch: %d", nextMerge.id, mergeInfoStr, oldNewDocInfoStr, newDocCount, introduceSnapshotEpoch))
+	s.debug(fmt.Sprintf("introduce merge:\n new seg id: %d \n %s \n %s \n newSegDocCount: %d \n epoch: %d", nextMerge.id, mergeInfoStr, oldNewDocInfoStr, newDocCount, introduceSnapshotEpoch))
 	// debug end
 
 	atomic.AddUint64(&s.stats.TotIntroduceMergeBeg, 1)
@@ -307,7 +306,7 @@ func (s *Writer) introduceMerge(nextMerge *segmentMerge, introduceSnapshotEpoch 
 	var memSegments, fileSegments uint64
 	for i := range root.segment {
 		segmentID := root.segment[i].id
-		segmentIsGoingAway := nextMerge.ProcessSegmentNow(segmentID, root.segment[i], newSegmentDeleted, s.config.path)
+		segmentIsGoingAway := nextMerge.ProcessSegmentNow(segmentID, root.segment[i], newSegmentDeleted, s.config.IndexName)
 		if !segmentIsGoingAway && root.segment[i].LiveSize() > 0 {
 			// this segment is staying
 			newSnapshot.segment = append(newSnapshot.segment, &segmentSnapshot{
@@ -405,6 +404,6 @@ func (s *Writer) replaceRoot(newSnapshot *Snapshot, persistedCh chan error, pers
 }
 
 func (s *Writer) debug(str string) {
-	_, _ = fmt.Fprintf(os.Stderr, "[%s] [%s]: %s \n",
-		time.Now().Format("2006-01-02 15:04:05"), s.config.path, str)
+	_, _ = fmt.Fprintf(os.Stderr, "[%s] [%s] %s \n",
+		time.Now().Format("2006-01-02 15:04:05"), s.config.IndexName, str)
 }
