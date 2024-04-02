@@ -16,6 +16,7 @@ package index
 
 import (
 	"fmt"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -205,7 +206,9 @@ func (s *Writer) executeMergeTask(merges chan *segmentMerge, task *mergeplan.Mer
 		if mergeTaskIntroStatus.skipped {
 			// decrement the ref counts on skipping introduction.
 			// FIXME stale file that won't get cleaned up
-			_ = seg.Close()
+			if seg != nil {
+				_ = seg.Close()
+			}
 		}
 	}
 
@@ -257,7 +260,7 @@ type segmentMerge struct {
 // during the merge, for each of these, we find the new document number of the item,
 // and flip the bit in the newSegmentDeleted bitmap, then returning true.
 func (s *segmentMerge) ProcessSegmentNow(segmentID uint64, segSnapNow *segmentSnapshot,
-	newSegmentDeleted *roaring.Bitmap) bool {
+	newSegmentDeleted *roaring.Bitmap, name string) bool {
 	if segSnapAtMerge, ok := s.old[segmentID]; ok {
 		if segSnapAtMerge != nil && segSnapNow.deleted != nil {
 			// assume all these deletes are new
@@ -269,6 +272,12 @@ func (s *segmentMerge) ProcessSegmentNow(segmentID uint64, segSnapNow *segmentSn
 			deletedSinceItr := deletedSince.Iterator()
 			for deletedSinceItr.HasNext() {
 				oldDocNum := deletedSinceItr.Next()
+				// debug start
+				errStr := fmt.Sprintf("[%s] [%s] process segment now:\n segId: %d \n doc num seg at merge: %d \n doc num seg snap now: %d \n oldDoc num: %d \n oldNewDocNums: %d \n",
+					time.Now().Format("2006-01-02 15:04:05"), name, segSnapAtMerge.segment.Count(), segSnapNow.segment.Segment.Count(), oldDocNum, len(s.oldNewDocNums[segmentID]))
+				fmt.Fprintln(os.Stderr, errStr)
+				// debug end
+
 				newDocNum := s.oldNewDocNums[segmentID][oldDocNum]
 				newSegmentDeleted.Add(uint32(newDocNum))
 			}

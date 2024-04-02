@@ -24,9 +24,9 @@ import (
 )
 
 type Config struct {
-	SegmentType    string
-	SegmentVersion uint32
-
+	SegmentType             string
+	SegmentVersion          uint32
+	IndexName               string
 	supportedSegmentPlugins map[string]map[uint32]*SegmentPlugin
 
 	UnsafeBatch        bool
