@@ -17,8 +17,6 @@ package index
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -47,12 +45,12 @@ type persistIntroduction struct {
 func (s *Writer) introducerLoop(introductions chan *segmentIntroduction,
 	persists chan *persistIntroduction, merges chan *segmentMerge,
 	introducerNotifier watcherChan, nextSnapshotEpoch uint64) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("[%s] introducerLoop goroutine crashed: %v\n%s", s.config.IndexName, err, debug.Stack()))
-			os.Exit(1)
-		}
-	}()
+	// defer func() {
+	// 	if err := recover(); err != nil {
+	// 		fmt.Fprintln(os.Stderr, fmt.Sprintf("[%s] introducerLoop goroutine crashed: %v\n%s", s.config.IndexName, err, debug.Stack()))
+	// 		os.Exit(1)
+	// 	}
+	// }()
 	var introduceWatchers epochWatchers
 OUTER:
 	for {
@@ -93,18 +91,18 @@ OUTER:
 
 func (s *Writer) introduceSegment(next *segmentIntroduction, introduceSnapshotEpoch uint64) error {
 	// this is debug info
-	var newDocCount uint64
-	if next.data != nil {
-		newDocCount = next.data.Count()
-	}
-	var delInfo strings.Builder
-	for id, mp := range next.obsoletes {
-		if mp != nil && !mp.IsEmpty() {
-			delInfo.WriteString(fmt.Sprintf(" [id: %d, delCount: %d] ", id, mp.GetCardinality()))
-		}
-	}
-
-	s.debug(fmt.Sprintf("introduce segment:\n id: %d \n docCount: %d \n delInfo: %s \n epoch: %d", next.id, newDocCount, delInfo.String(), introduceSnapshotEpoch))
+	// var newDocCount uint64
+	// if next.data != nil {
+	// 	newDocCount = next.data.Count()
+	// }
+	// var delInfo strings.Builder
+	// for id, mp := range next.obsoletes {
+	// 	if mp != nil && !mp.IsEmpty() {
+	// 		delInfo.WriteString(fmt.Sprintf(" [id: %d, delCount: %d] ", id, mp.GetCardinality()))
+	// 	}
+	// }
+	//
+	// s.debug(fmt.Sprintf("introduce segment:\n id: %d \n docCount: %d \n delInfo: %s \n epoch: %d", next.id, newDocCount, delInfo.String(), introduceSnapshotEpoch))
 	// debug info end
 
 	atomic.AddUint64(&s.stats.TotIntroduceSegmentBeg, 1)
@@ -265,26 +263,26 @@ func (s *Writer) introducePersist(persist *persistIntroduction, introduceSnapsho
 // channel before exiting the introduceMerge.
 func (s *Writer) introduceMerge(nextMerge *segmentMerge, introduceSnapshotEpoch uint64) {
 	// debug info
-	mergeInfo := make([]string, 0, len(nextMerge.old))
-	for id, old := range nextMerge.old {
-		var deletedCount uint64
-		if old.deleted != nil {
-			deletedCount = old.deleted.GetCardinality()
-		}
-		mergeInfo = append(mergeInfo, fmt.Sprintf("{seg id: %d, doc count: %d, del count: %d}", id, old.segment.Count(), deletedCount))
-	}
-	mergeInfoStr := fmt.Sprintf("merge info:[%s]", strings.Join(mergeInfo, ","))
-
-	oldNewDocInfo := make([]string, 0, len(nextMerge.oldNewDocNums))
-	for id, mp := range nextMerge.oldNewDocNums {
-		oldNewDocInfo = append(oldNewDocInfo, fmt.Sprintf("{seg id: %d, map count %d}", id, len(mp)))
-	}
-	oldNewDocInfoStr := fmt.Sprintf("old new doc info: [%s]", strings.Join(oldNewDocInfo, ","))
-	var newDocCount uint64
-	if nextMerge.new != nil {
-		newDocCount = nextMerge.new.Count()
-	}
-	s.debug(fmt.Sprintf("introduce merge:\n new seg id: %d \n %s \n %s \n newSegDocCount: %d \n epoch: %d", nextMerge.id, mergeInfoStr, oldNewDocInfoStr, newDocCount, introduceSnapshotEpoch))
+	// mergeInfo := make([]string, 0, len(nextMerge.old))
+	// for id, old := range nextMerge.old {
+	// 	var deletedCount uint64
+	// 	if old.deleted != nil {
+	// 		deletedCount = old.deleted.GetCardinality()
+	// 	}
+	// 	mergeInfo = append(mergeInfo, fmt.Sprintf("{seg id: %d, doc count: %d, del count: %d}", id, old.segment.Count(), deletedCount))
+	// }
+	// mergeInfoStr := fmt.Sprintf("merge info:[%s]", strings.Join(mergeInfo, ","))
+	//
+	// oldNewDocInfo := make([]string, 0, len(nextMerge.oldNewDocNums))
+	// for id, mp := range nextMerge.oldNewDocNums {
+	// 	oldNewDocInfo = append(oldNewDocInfo, fmt.Sprintf("{seg id: %d, map count %d}", id, len(mp)))
+	// }
+	// oldNewDocInfoStr := fmt.Sprintf("old new doc info: [%s]", strings.Join(oldNewDocInfo, ","))
+	// var newDocCount uint64
+	// if nextMerge.new != nil {
+	// 	newDocCount = nextMerge.new.Count()
+	// }
+	// s.debug(fmt.Sprintf("introduce merge:\n new seg id: %d \n %s \n %s \n newSegDocCount: %d \n epoch: %d", nextMerge.id, mergeInfoStr, oldNewDocInfoStr, newDocCount, introduceSnapshotEpoch))
 	// debug end
 
 	atomic.AddUint64(&s.stats.TotIntroduceMergeBeg, 1)
