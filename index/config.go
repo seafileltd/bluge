@@ -77,6 +77,8 @@ type Config struct {
 
 	ValidateSnapshotCRC bool
 
+	ConcurrentSegmentLoad int
+
 	virtualFields map[string][]segment.Field
 }
 
@@ -136,6 +138,11 @@ func (config Config) DisableOptimizeDisjunctionUnadorned() Config {
 
 func (config Config) WithUnsafeBatches() Config {
 	config.UnsafeBatch = true
+	return config
+}
+
+func (config Config) WithConcurrentSegmentLoad(n int) Config {
+	config.ConcurrentSegmentLoad = n
 	return config
 }
 
@@ -218,6 +225,8 @@ func defaultConfig() Config {
 		ValidateSnapshotCRC: true,
 
 		supportedSegmentPlugins: map[string]map[uint32]*SegmentPlugin{},
+
+		ConcurrentSegmentLoad: 1,
 	}
 
 	rv.WithSegmentPlugin(&SegmentPlugin{

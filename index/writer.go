@@ -30,10 +30,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const (
-	maxConcurrentSegmentLoads = 3
-)
-
 type Writer struct {
 	stats Stats
 
@@ -521,7 +517,7 @@ func (s *Writer) loadSnapshot(epoch uint64) (*Snapshot, error) {
 	// Segments are loaded concurrently to reduce latency when data is fetched
 	// from S3/OSS.
 	var eg errgroup.Group
-	eg.SetLimit(maxConcurrentSegmentLoads)
+	eg.SetLimit(s.config.ConcurrentSegmentLoad)
 	for i, segSnapshot := range snapshot.segment {
 		i := i
 		segSnapshot := segSnapshot
