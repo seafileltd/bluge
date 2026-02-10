@@ -78,6 +78,11 @@ func (config Config) WithSearchStartFunc(f func(size uint64) error) Config {
 	return config
 }
 
+func (config Config) WithConcurrentSegmentLoad(n int) Config {
+	config.indexConfig = config.indexConfig.WithConcurrentSegmentLoad(n)
+	return config
+}
+
 func DefaultConfig(path string) Config {
 	indexConfig := index.DefaultConfig(path)
 	return defaultConfig(indexConfig)

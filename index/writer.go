@@ -27,6 +27,7 @@ import (
 	segment "github.com/blugelabs/bluge_segment_api"
 
 	"github.com/RoaringBitmap/roaring"
+	"golang.org/x/sync/errgroup"
 )
 
 type Writer struct {
@@ -504,17 +505,37 @@ func (s *Writer) loadSnapshot(epoch uint64) (*Snapshot, error) {
 		}
 	}
 
-	var running uint64
+	var plugins []*SegmentPlugin
 	for _, segSnapshot := range snapshot.segment {
 		segPlugin, err := loadSegmentPlugin(s.config.supportedSegmentPlugins, segSnapshot.segmentType, segSnapshot.segmentVersion)
 		if err != nil {
 			return nil, fmt.Errorf("error loading required segment plugin: %v", err)
 		}
-		segSnapshot.segment, err = s.loadSegment(segSnapshot.id, segPlugin)
-		if err != nil {
-			return nil, fmt.Errorf("error opening segment %d: %w", segSnapshot.id, err)
-		}
+		plugins = append(plugins, segPlugin)
+	}
 
+	// Segments are loaded concurrently to reduce latency when data is fetched
+	// from S3/OSS.
+	var eg errgroup.Group
+	eg.SetLimit(s.config.ConcurrentSegmentLoad)
+	for i, segSnapshot := range snapshot.segment {
+		i := i
+		segSnapshot := segSnapshot
+		eg.Go(func() error {
+			segSnapshot.segment, err = s.loadSegment(segSnapshot.id, plugins[i])
+			if err != nil {
+				return fmt.Errorf("error opening segment %d: %w", segSnapshot.id, err)
+			}
+			return nil
+		})
+	}
+	err = eg.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	var running uint64
+	for _, segSnapshot := range snapshot.segment {
 		snapshot.offsets = append(snapshot.offsets, running)
 		running += segSnapshot.segment.Count()
 	}
